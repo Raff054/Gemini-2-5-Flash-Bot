@@ -1,26 +1,30 @@
 import os
 import requests
+import json
 from google import genai
 from google.genai.errors import APIError
+from flask import Flask, request as flask_request
+
+app = Flask(__name__)
 
 # --- 1. Настройка переменных окружения и Доступ ---
-# Код ищет переменные с этими именами, которые вы добавите на Vercel
 TELEGRAM_TOKEN = os.environ.get("8251316235:AAG9HBHkXkV-jXwaHvmzRmOp92wOoUL554s")
 GEMINI_API_KEY = os.environ.get("AIzaSyBK-_KDly9LRB47fZ4sQ6j-pkyQFsvJVHg")
 
 # Список разрешенных ID пользователей Telegram
-# Значение берется из переменной Vercel, разделяется запятыми и конвертируется в int
-ALLOWED_USER_IDS_RAW = os.environ.get("620773667,1015218674", "")
+ALLOWED_USER_IDS_RAW = os.environ.get("620773667", "1015218674")
 ALLOWED_USER_IDS = [int(i.strip()) for i in ALLOWED_USER_IDS_RAW.split(',') if i.strip().isdigit()]
 
 # !!! ЖЕСТКО ЗАДАЕМ НУЖНУЮ МОДЕЛЬ !!!
 GEMINI_MODEL_NAME = "gemini-2.5-flash" 
 
 # Инициализация клиента Gemini
-try:
-    client = genai.Client(api_key=GEMINI_API_KEY)
-except Exception:
-    client = None
+client = None
+if GEMINI_API_KEY:
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"Gemini client initialization error: {e}")
 
 # --- 2. Функция отправки сообщения в Telegram ---
 def send_telegram_message(chat_id, text, reply_to_message_id=None):
@@ -37,13 +41,14 @@ def send_telegram_message(chat_id, text, reply_to_message_id=None):
     }
     requests.post(url, json=payload)
 
-# --- 3. Основная логика бота (Обработчик запросов) ---
-def handler(request):
+# --- 3. Обработчик HTTP-запросов (Flask Route) ---
+@app.route('/', methods=['POST'])
+def webhook_handler():
     try:
         if not client:
-            return "ok"
+            return "Gemini client not initialized", 500
 
-        data = request.get_json()
+        data = flask_request.get_json()
         if not data or 'message' not in data:
             return "ok"
 
@@ -71,7 +76,7 @@ def handler(request):
         if text.startswith('/start'):
             send_telegram_message(
                 chat_id,
-                "Привет! Я приватный бот на базе **Gemini 2.5 Flash**. Задайте мне любой вопрос!",
+                f"Привет! Я приватный бот на базе **Gemini 2.5 Flash**. Ваш ID: `{user_id}`. Задайте мне любой вопрос!",
                 reply_to_message_id=message_id
             )
             return "ok"
@@ -93,12 +98,10 @@ def handler(request):
         send_telegram_message(chat_id, "Ошибка Gemini API. Проверьте ключ или логи Vercel.")
     except Exception as e:
         print(f"General Error: {e}")
-        # Выводим ошибку в консоль Vercel для диагностики
         send_telegram_message(chat_id, "Произошла внутренняя ошибка. Попробуйте снова.")
 
     return "ok"
 
-
-# Vercel-функция
-def handle(event, context):
-    return handler(event)
+# Vercel-функция: Теперь она просто запускает приложение Flask
+def handler(event, context):
+    return app(event, context)
