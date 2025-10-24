@@ -5,7 +5,7 @@ from google.genai.errors import APIError
 
 # --- 1. Настройка переменных окружения и Доступ ---
 # Код ищет переменные с этими именами, которые вы добавите на Vercel
-TELEGRAM_TOKEN = os.environ.get("8251316235:AAF0qclUQZer6OiWDWtZQuaMae8islNYHIM")
+TELEGRAM_TOKEN = os.environ.get("8251316235:AAG9HBHkXkV-jXwaHvmzRmOp92wOoUL554s")
 GEMINI_API_KEY = os.environ.get("AIzaSyBK-_KDly9LRB47fZ4sQ6j-pkyQFsvJVHg")
 
 # Список разрешенных ID пользователей Telegram
